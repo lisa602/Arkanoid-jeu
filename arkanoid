@@ -1,0 +1,615 @@
+ 
+
+import processing.dxf.*;
+
+// arkanoid = https://www.dailymotion.com/video/x5f1vv
+/////////////////////////////////////////////////////
+//
+// Arkanoid
+// DM2 "UED 131 - Programmation impérative" 2022-2023
+//
+//
+/////////////////////////////////////////////////////
+import processing.sound.*; 
+
+
+
+
+//===================================================
+// les variables globales
+//===================================================
+//déclaration des constantes permettant d'indentifier les différentes étapes possibles ainsi que la variable etat
+final int INIT=1;
+final int GO=2;
+final int OVER=3;
+int etat = INIT;
+/////////////////////////////
+// Pour les effets sonores //
+/////////////////////////////
+SoundFile intro, letsgo, raquette, mur, gameover, brique; //déclaration des variables de type son 
+/////////////////////////////
+// Pour la balle           //
+
+final int balleD=10; // déclaration d'une constante balleD pour définir le diamètre de la balle qui est de 10
+
+//déclaration des variables balleX et ballY de type réel pour enregistrer les coordonnées du centre de la balle
+float balleX;          
+float balleY;
+
+final int balleVitesse=7; // déclaration d'une constante de type entier balleVitesse
+
+// déclaration des variables de type réel balleVx et balleVy ainsi que newBalleX et newBalleY 
+float balleVx; 
+float balleVy;
+float newBalleX;
+float newBalleY;
+/////////////////////////////
+
+/////////////////////////////
+// Pour la raquette        //
+
+//déclaration des constantes raquetteY, raquetteL, raquetteH de type entier pour définir respectivement la position du milieu de la raquette , la largeur et la hauteur 
+final int raquetteY=590;  
+final int raquetteL=100;
+final int raquetteH=20;
+
+int raquetteX;  // déclaration de la variable raquetteX de type entier pour enregistrer le centre de la raquette 
+/////////////////////////////
+
+/////////////////////////////
+// Pour la zone de jeu     //
+
+// déclaration des constantes pour définir les cordonnées des bords du terrain et le centre de la zone de jeu 
+final int minX=30;   
+final int maxX=680;
+final int maxY=630;
+final int minY=30;
+final int centreX=340;
+int score = 0; //déclaration de la variable score
+int highScore = 0; //déclaration de la variable highScore
+/////////////////////////////
+
+/////////////////////////////
+// Pour les briques        //
+
+//déclaration des  constantes nbLignes et nbColonnes pour enregistrer le nombre de lignes et de colonnes de briques
+final int nbLignes=8;
+final int nbColonnes=13;
+
+//déclaration d'une variable nbBriques initialisée a 104
+int nbBriques;
+
+//déclaration des constantes briqueL et briqueH pour enregistrer la largeur et la hauteur d'une brique 
+final int briqueL=50;
+final int briqueH=25;
+
+//Déclaration des tableaux d’entiers briquesX et briquesY pour stocker les abscisses et ordonnées des briques du jeu 
+int[] briquesX;
+int [] briquesY;
+
+float [][] couleurs;//déclaration d'un tableau couleur pour enregistrer la couleur de chaque ligne
+
+/////////////////////////////
+
+/////////////////////////////
+// Pour le "boss"          // 
+int bossX = 250; //abscisse du coin supérieur gauche du boss (qst 2.2 partie 1 du TD2)
+int bossY = 100; //ordonnée du coin supérieur gauche du boss 
+// Pour le contrôle global //
+/////////////////////////////
+
+////////////////////////////////////
+// Pour la gestion de l'affichage //
+////////////////////////////////////
+
+//déclaration de constantes de type chaine de caractere pour les afficher sur l'écran
+final String GET_READY = "GET READY";
+final String PRESS_SPACE = "PRESS <SPACE> TO START";
+final String GAME_OVER = "GAME OVER";
+
+//===================================================
+// l'initialisation
+//===================================================
+void setup() {
+size(960, 630); 
+initJeu();
+//initBalleEtRaquette();//fonction permettant d'initialiser la raquette au centre du terrain de jeu 
+//initBriques(); 
+
+//chargement des fichiers audio a partir du fichier data 
+ intro = new SoundFile(this, "intro.mp3");
+ letsgo = new SoundFile(this, "letsgo.mp3");
+ raquette = new SoundFile(this, "raquette.mp3");
+ mur=new SoundFile(this, "mur.mp3");
+ gameover = new SoundFile(this, "gameover.mp3");
+ brique = new SoundFile(this, "brique.mp3");
+ 
+ intro.play(); //lecture du fichier son 
+}
+
+//===================================================
+// l'initialisation de la balle et de la raquette
+//===================================================
+void initBalleEtRaquette() {
+raquetteX=centreX;//initialisation de la raquette au centre du terrain de jeu 
+
+// initialisation de la balle posée sur la raquette 
+ balleX=centreX; 
+ balleY=575; 
+
+//on utilise la fonction random pour choisir aléatoirement un angle compris entre 5 /4 et 7 /4 
+ balleVx=balleVitesse*cos(random( 5*PI/4,(7*PI)/4));
+ balleVy=balleVitesse*sin(random(5*PI/4,(7*PI)/4));  
+}
+
+//===================================================
+// l'initialisation des briques
+//===================================================
+void initBriques() {
+  int minBriqueX = minX+25;
+  int minBriqueY = minY+80;
+  nbBriques = 104;
+  briquesX= new int [nbBriques];
+  briquesY= new int [nbBriques];
+  couleurs= new float[nbLignes][3];
+  
+  for(int i=0; i<nbLignes; i++){
+      couleurs[i][0] = random(200,250)*i;
+      couleurs[i][1] = random(150,190);
+      couleurs[i][2] = random(150,180);
+      for(int j=0; j<nbColonnes; j++){
+        briquesX[j+(nbColonnes*i)] = minBriqueX+(j*briqueL);
+        briquesY[j+(nbColonnes*i)] = minBriqueY+(i*briqueH);
+      }
+  }
+
+}
+
+void afficheBriques(){
+    for(int i=0; i<nbLignes; i++){
+       fill(couleurs[i][0], couleurs[i][1], couleurs[i][2]);
+       for(int j=0; j<nbColonnes; j++){
+         rect(briquesX[j+(nbColonnes*i)], briquesY[j+(nbColonnes*i)], briqueL, briqueH, 10);
+      }
+  }
+}
+
+
+//===================================================
+// l'initialisation de la partie
+//===================================================
+void initJeu() {
+    initBalleEtRaquette();
+    initBriques();
+}
+
+//===================================================
+// la boucle de rendu
+//===================================================
+void draw() {
+  
+  String message = "";
+  
+  switch(etat){
+    case INIT :
+        message = GET_READY;  //affichage du message "GET READY"
+        break; //termine l'exécution de la structure et passe a l'instruction suivante aprés 
+    case GO: //affichage de touts les déplacements de la balle dans GO
+        deplaceBalle();
+        rebondMurs();
+         rebondBriques(balleX, balleY, newBalleX, newBalleY);
+        rebondRaquette();
+        miseAJourBalle(); 
+        break; //termine l'exécution de la strcture et passe a l'instruction suivante aprés 
+    case OVER: //quand on se retrouve dans l'etat over 
+        message = GAME_OVER;  // on affiche le message GAME OVER 
+        break; 
+  }
+  afficheJeu(message); // appelle de la fonction afficheJeu dans la fonction draw 
+ }
+
+
+
+//===================================================
+// gère les rebonds sur les murs
+//===================================================
+void rebondMurs() {
+  
+    if(newBalleX < minX|| newBalleX > maxX){ //si la nouvelle position de la balle en x est inférieur au bord de 30 pixels et que de plus elle est supérieur au bord de 680 pixels 
+     balleVx = - balleVx; //on inverse la vitesse horizentale de la balle afin qu'elle ne dépasse pas la zone de déplacement 
+      mur.play(); //lecture du son mur 
+    }
+    
+   if(newBalleY <= minY){ //si la nouvelle position de la balle en Y est inférieur au bord de 30 pixels 
+     balleVy = - balleVy;// on inverse la vitesse verticale de la balle afin qu'elle ne dépasse pas la zone de déplacement 
+      mur.play(); //lecture du son mur 
+   }
+   else if(newBalleY >= maxY){ //sinon si la nouvelle position de la balle en Y est supérieur au bord qui est de 630 
+     if(score > highScore){ //et que si le nouveau score réalisé est supérieur au score précedant  
+          highScore = score; // on met a jour la variable highScore pour enregistrer le meilleure score de la partie en cours 
+       }
+     score = 0; //le score repasse a 0 si l'on arrive pas a rattraper la balle avec la raquette 
+     gameover.play();//lecture du son gameover
+     etat = OVER; //modification de la variable etat afin de passer dans l'etat over quand on rate la balle 
+     
+   }
+}
+
+//===================================================
+// gère le rebond sur la raquette
+//===================================================
+void rebondRaquette() {
+  float raquetteRightX = raquetteX + raquetteL/2; //déclaration d'une variable raquetteRightX de type réelle représentant le bord droit de la raquette 
+  float raquetteLeftX = raquetteX - raquetteL/2;//déclaration d'une variable raquetteLeftX de type réelle représentant le bord gauche de la raquette 
+  float raquetteTopY = raquetteY - raquetteH/2;//déclaration d'une variable raquetteTopY de type rélle représentant le top de la raquette 
+  if( (balleY < raquetteTopY) // si l'ancienne position de la balle en y est au dessus de la partie haute de la raquette 
+     && (newBalleY > raquetteTopY) // et que si la nouvelle position de la balle en Y se retrouve sous  la partie haute de la raquette 
+     && (newBalleX >= raquetteLeftX && newBalleX <= raquetteRightX) //et que étant donné que l'on souhaite que la balle  soit bloqué entre le bord gauche et droit de la raquette ainsi il faut que la nouvelle position de la balle en X soit supérieur ou égale au bord gauche de la raquette de méme pour le cotes droit on souhaite que la balle soit inférieur au bord droit de la raquette  
+     ){
+     balleVy = - balleVy;//inversement de la vitesse verticale de la balle afin qu'elle rebondisse sur la raquette  
+     raquette.play(); //lecture du son raquette 
+    }
+}
+
+//===================================================
+// gère le rebond sur une "boîte"
+// --------------------------------------------------
+// (x1, y1) = l'ancienne position de la balle
+// (x2, y2) = la nouvelle position de la balle
+// (bx, by) = le coin supérieur gauche de la boîte
+// (bw, bh) = la largeur et la hauteur de la boîte
+// --------
+// résultat = vrai si rebond / faux sinon
+// --------
+// met à jour la vitesse de la balle en fonction du 
+// rebond
+//===================================================
+boolean rebond(float x1, float y1, float x2, float y2, 
+float bx, float by, float bw, float bh) {
+   boolean estRebond = false;
+   
+   if( (x1 < bx || x1 > bx + bw) //si l'ancienne abscisse est inférieur au bord gauche et supérieur au bord droit du rectangle (c'est a dire a l'extérieur du rectangle)
+       && (x2 >= bx && x2 <= bx + bw) //et si la nouvelle abscisse est supérieur ou égale au bord gauche et inférieur ou égale au bord droit du rectangle (a l'intérieur du rectangle)
+       && (y2 <= by + bh && y2 >= by)){ //et si la nouvelle ordonnée est inférieur ou égale au bas du rectangle et est supérieur ou égale au haut du rectangle 
+         balleVx = - balleVx; //inversement de la vitesse horizentale de la balle afin qu'il y'ait rebond sur le boss  
+         estRebond = true; //alors la fonction renvoie vrai étant donné qu'on a détecté un rebond 
+   }
+   if ( (y1 > by + bh || y1 < by) //si l'ancienne ordonnée est supérieur au bas du rectangle et est inférieur au haut du rectangle ( cad a l'extérieur du rectangle) 
+        && (y2 <= by + bh && y2 >= by) //et si la nouvelle ordonnée est inférieur ou égale au bas du rectangle et supérieur ou égale au haut du rectangle (cad a l'intérieur du rectangle)
+        && (x2 >= bx && x2 <= bx + bw) ){//et si la nouvelle abscisse est supérieur ou égale au bord gauche et inférieur ou égale au bord droit du rectangle 
+        balleVy = - balleVy;// inversement de la vitesse verticale de la balle afin qu'il y'ait rebond sur le boss 
+        estRebond = true;//alors la fonction renvoie true étant donné qu'on a détecté un rebond 
+   }
+   return estRebond;//renvoie estRebond
+}
+
+//===================================================
+// gère le rebond sur les briques
+// --------------------------------------------------
+// (x1, y1) = l'ancienne position de la balle
+// (x2, y2) = la nouvelle position de la balle
+//===================================================
+void rebondBriques(float x1, float y1, float x2, float y2) {
+  int bx, by;
+  for(int i=0; i<nbLignes; i++){
+    for(int j=0; j<nbColonnes; j++){
+          bx = briquesX[j+(nbColonnes*i)];
+          by = briquesY[j+(nbColonnes*i)];
+          if(rebond(x1, y1, x2, y2, bx, by, briqueL, briqueH)){
+               briquesX[j+(nbColonnes*i)]= -100;
+               briquesY[j+(nbColonnes*i)]= -100;
+               brique.play();
+               score+=10;
+               highScore = max(score, highScore);
+               nbBriques--;
+          }
+    }
+  }
+}
+
+//===================================================
+// gère le rebond sur le boss
+// --------------------------------------------------
+// (x1, y1) = l'ancienne position de la balle
+// (x2, y2) = la nouvelle position de la balle
+//===================================================
+void rebondBoss(float x1, float y1, float x2, float y2) {
+   if(rebond(x1, y1, x2, y2, bossX, bossY, 200, 200)){ //s'il ya rebond sur le boss 
+     score+=10; //augmentation du score de 10 
+   }
+}
+
+//===================================================
+// calcule la nouvelle position de la balle
+//===================================================
+void deplaceBalle() {
+
+ ///Mise a jour de la nouvelle position de la balle 
+  newBalleX = balleX + balleVx;
+  newBalleY = balleY + balleVy;
+}
+
+//===================================================
+// met à jour la position de la balle
+//===================================================
+void miseAJourBalle() {
+
+ //affection des coordonnées qui recopie les coordonnées (newBalleX,newBalleY) dans (balleX,balleY)
+ 
+ balleX = newBalleX;
+ balleY = newBalleY;
+}
+
+//===================================================
+// affiche un écran, avec un message
+// --------------------------------------------------
+// msg = le message à afficher
+//===================================================
+void afficheEcran(String message) {
+
+  if(message.equals(GET_READY)){  //si le message est "GET READY" 
+      PImage arkanoid = loadImage("arkanoid.png"); //affichage de l'image arkanoid
+      image(arkanoid,-315,450,1000,200);
+      fill(207); //remplissage gris 
+      textSize(90);// taille de la police
+      text(GET_READY,-160,770);// afficharge du message "GET READY"
+      textSize(40); //taille de la police 
+      text(PRESS_SPACE,-180,870); //affichage du message "PRESS <SPACE> TO START"
+  }
+  else if(message.equals(GAME_OVER)){ //si le message est "GAME OVER"
+      fill(207); //remplissage gris 
+      textSize(90);//taille de la police 
+      text(GAME_OVER,-160,770);// affichage du message GAME OVER
+  }
+}
+
+//===================================================
+// fait le dessin de pavage au fond
+//===================================================
+void pavage() {
+//insertion de l'image "tile"
+  PImage tile=loadImage("tile.png");
+  //boucles permettant d'afficher de manière répétée à la fois horizontalement et verticalement l'image "tile" afin de dessiner le fond de la zone de déplacement de la balle 
+  for( int i=0; i<maxX; i=i+65){
+    for(int j=-76; j<height;j+=76){
+      image(tile,i,j);
+      image(tile,i+65,j+38);
+    }}
+}
+
+//===================================================
+// affiche le cadre
+//===================================================
+void cadre() {
+//insertion des images sur le cadre gris
+PImage mur1 = loadImage("wall2.png") ; 
+PImage mur2 = loadImage("wall1.png") ; 
+PImage mur0 = loadImage("top.png") ; 
+image(mur0,0,0);
+//boucle permettant d'afficher en alternance verticalement les images "wall1.png" et "wall2.png"
+for(int y = 30; y<height; y+=105){
+  image(mur1,0,y);
+  image(mur2,0,y+65);
+  image(mur1,maxX,y);
+  image(mur2,maxX,y+65);}
+}
+//
+//===================================================
+// formate le score sur 6 chiffres
+// --------------------------------------------------
+// score = le score à afficher
+// --------
+// résultat = une chaîne de caractères sur 6 chiffres
+//===================================================
+String formatScore(int score) {
+  return "";
+}
+
+//===================================================
+// affiche le cartouche de droite
+//===================================================
+void cartouche() {
+
+fill(0); //remplissage noir
+stroke(0); // tracé de couleur noir 
+rectMode(CORNER); // utilisation du mode CORNER puisque ce dernier interprète les deux premiers paramètres de rect() comme le coin supérieur gauche de la forme, tandis que les troisième et quatrième paramètres sont sa largeur et sa hauteur
+rect(710,0,250,630); // dessin du rectangle noir avec le mode CORNER
+
+PImage cadre1 = loadImage("arkanoid.png") ; // insertion de l'image arkanoid
+image(cadre1, 710, 0) ;
+
+//affichage de textes au centre de la fenetre avec la police joystix.ttf
+PFont fonte = createFont("joystix.ttf",20); 
+textFont(fonte);
+fill(255,0,0); // remplissage rouge 
+text("1UP", 820, 100);// affichage du texte 1UP
+fill(255); // remplissage blanc
+
+//affichage des éléments de la notice de copyright en remplacant le nom (G. HUTZLER) par le nôtre
+text("SCORE", 750, 200); 
+text(score, 800, 250); 
+text("HIGH SCORE", 750, 300); 
+text(highScore, 800, 350); 
+text("COPYRIGHT", 770, 550);
+text("L. KHETTAB", 760, 570);
+text("© 2022", 800, 590);
+}
+
+
+
+//===================================================
+// affiche le boss dans sa cage
+//===================================================
+void boss() {
+
+//chapeau
+fill(255, 0, 0); // remplissage rouge    
+ellipse(198,149,171,190); // cercle de couleur rouge représentant la calotte du chapeau 
+fill(252, 38, 38); // remplissage rouge
+ellipse(197,166,206,124); // cercle rouge représentant le bord du chapeau
+fill(255); //remplissage blanc
+ellipse(200,115,73,80); // cercle blanc sur le chapeau 
+
+//M sur le chapeau
+stroke(235, 49, 12); // tracé de couleur rouge
+strokeWeight(10);  //épaisseur du tracé 
+translate(4,0); // déplacement de la lettre M dans le cercle blanc 
+// lettre M
+line(180,95,180,115); 
+line(180,95,195,115);
+line(195,115,210,95);
+line(210,95,210,115);
+noStroke(); // pas de contour rouge
+translate(-4,0);// retour aux coordonnées initiales 
+
+// tete  
+fill(255, 220, 156); // remplissage beige 
+ellipse(200,200,149,168); // cercle représentant la tete de mon personnage 
+
+//sourcils gauche
+fill(#3b261e); //remplissage marron
+ellipse(170,150,40,45); //cercle marron
+fill(255,220,156); //remplissage beige
+noStroke(); // pas de contour 
+ellipse(168,161,45,35); //cercle beige pour camoufler le cercle marron gauche
+
+//oeil gauche
+fill(255, 255, 255); // remplissage blanc
+ellipse(170,180,35,45); // cercle blanc représentant l'oeil gauche 
+// pupille gauche
+fill(30, 189, 247); // remplissage bleu 
+ellipse(180,180,15,27); 
+fill(0, 0, 0); // remplissage noir
+ellipse(180,180,11,14);
+fill(255, 255, 255); // remplissage blanc 
+ellipse(180,173,9,10);
+
+// sourcil droit
+fill(#3b261e); // remplissage marron 
+ellipse(230,150,40,45); // cercle marron
+fill(255,220,156); // remplissage beige
+ellipse(232,161,45,35); // cercle beige camouflant le cercle marron droit
+
+//oeil droit
+fill(255); // remplissage blanc 
+ellipse(230,180,35,45); // cercle blanc représentant l'oeil droit 
+
+// pupille droite
+fill(30,189,247); // remplissage bleu
+ellipse(220,180,15,27); 
+fill(0, 0, 0); // remplissage noir
+ellipse(217,180,10,14); 
+fill(255, 255, 255); // remplissage blanc 
+ellipse(220,173,9,10);
+
+//moustache
+
+fill(0);  //remplissage noir
+ellipse(168, 244, 23, 19);// premier cercle
+ellipse(183,252,23,15);//deuxiéme cercle
+ellipse(199, 240, 77,20);
+ellipse(200,250,23,19);// troisiéme cercle
+ellipse(216,250,23,18);// quatriéme cercle 
+ellipse(231,244,23,17);// cinquiéme cercle
+
+//nez 
+strokeWeight(0.5); // contour 0.5
+stroke(184, 148, 64); // couleur pour le contour
+fill(255, 220, 156);  // couleur de remplissage beige 
+ellipse(201,211,56,48);  // cercle représentant le nez
+
+//bouche
+fill(230); // remplissage gris
+stroke(0); // tracé de couleur noir 
+strokeWeight(0.5); // épaisseur du tracé noir
+bezier(171,259,163,253,189,306,234,259); 
+noFill(); //pas de remplissage
+bezier(171,259,163,266,189,251,234,259);
+
+//insertion de l'image cage sur le boss 
+PImage img= loadImage("cage.png");
+image(img,0,0);
+}
+
+//===================================================
+// affiche la balle
+//===================================================
+void afficheBalle() {
+
+fill(255); // remplissage blanc
+ellipse(balleX,balleY,10,10); //affichage de la balle centrée sur le point (raquetteX, raquetteY) de couleur blanche 
+}
+
+//===================================================
+// affiche la raquette
+//===================================================
+void afficheRaquette() {
+
+//afficharge de la raquette centrée sur le point (raquetteX,raquetteY) de couleur blanche
+fill(255); // remplissage blanc
+rectMode(CENTER); //étant donné que l'on souhaite que la raquette soit centrée sur le point (raquetteX,raquetteY) on utilise alors rectMode(CENTER) puisque cette fonction interprète les deux premiers paramètres de rect() comme le point central de la forme, tandis que les troisième et quatrième paramètres sont sa largeur et sa hauteur.
+rect(raquetteX,raquetteY,raquetteL,raquetteH,15); //dessin de la raquette blanche en utilisant rectMode(CENTER)
+}
+
+//===================================================
+// affiche le jeu
+//===================================================
+void afficheJeu(String message) {
+  
+pavage(); //appelle a la fonction pavage dans la fonction afficheJeu
+
+cartouche(); // appelle a la fonction cartouche dans la fonction afficheJeu
+
+cadre(); // appelle a la fonction cadre dans la fonction afficheJeu
+
+afficheRaquette(); // appelle a la fonction afficheRaquette dans la fonction afficheJeu
+ 
+afficheBalle(); // appelle a la fonction afficheBalle dans la fonction afficheJeu
+
+pushMatrix() ;  // cette fonction permet un changement temporaire de l'origine du repére (avec translate) et l'échelle (avec scale)
+
+translate(255, 100); // affichage du boss dans le coin supérieur gauche
+
+scale(0.5); //affichage du boss de taille 200x200 .
+
+boss(); // appelle a la fonction boss dans la fonction afficheJeu
+
+afficheEcran(message); //appelle a la fonction afficheEcran dans la fonction afficheJeu
+
+popMatrix();// cette fonction permet de revenir aux conditions de tracé initiales 
+
+afficheBriques();
+}
+
+//===================================================
+// gère les interactions clavier
+//===================================================
+void keyPressed() {
+
+  if(key == ' '){ //si on détecte quon a appuyé sur la touche ESPACE  
+    if(etat == INIT){ //si on est dans l'état INIT 
+       etat = GO;      //on part dans l'état GO ( on fais un changement de variable)
+       intro.stop();  //arret du son d'intro
+       letsgo.play(); //lecture du son letsgo
+       delay(3200);  //attente de 3.2s avant le lancement du jeu de ce fais on utilise la fonction delay qui provoque l'arrêt du programme pendant un temps spécifié. Par ailleurs les temps de retards sont spécifiés en millièmes de seconde ainsi exécuter delay(3200) arretera le programme pendant 3.2 secondes 
+    }
+    else if(etat == OVER){ // si le joueur se retrouve dans l'état over 
+       etat = INIT; //on repasse dans l'état INIT et on refais le meme chemin que précedemment 
+       initJeu();
+    }
+  }
+}
+
+//===================================================
+// gère les interactions souris
+//===================================================
+void mouseMoved() {
+  
+raquetteX=mouseX; //ajustement du centre de la raquette en fonction de la position de la souris 
+
+//condition pour limiter le déplacement de la raquette 
+ if(raquetteX>maxX-50){ //condition ayant pour but de bloquer la raquette a droite afin quelle ne dépasse pas le cadre or on soustrait par -50 puisqu'il faut prendre en compte la largeur de la raquette ainsi que celle du cadre pour ne pas que ca dépasse
+  raquetteX=maxX-50;}
+ if(raquetteX< minX+50){ // condition ayant pour but de bloquer la raquette a gauche afin qu'elle ne dépasse pas le cadre or ici on n'ajoute 50 puisqu'il faut prendre en compte la largeur de la raquette ainsi que celle du cadre pour ne pas que ca dépasse
+   raquetteX=minX+50;}
+}
